@@ -3,7 +3,8 @@ import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/User.models.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { cookiesOptions } from "../constansts.js";
-
+import cloudinery from "cloudinary";
+import {uploadOnCloudinary} from "../utils/cloudinary.js";
 
 
 
@@ -119,4 +120,71 @@ const updateUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "user update successfully"));
 });
 
-export { registerUser, updateUser };
+
+
+// delete user avatar photo
+const deleteUserAvatar = asyncHandler( async(req, res) => {
+  const userId = req.user._id;
+  const user = await User.findById(userId);
+
+  if(!user || !user.avatar){
+    throw new ApiError(404, "User or Avatar not found");
+  }
+
+  // extract public_id from the cloudinery url
+  const publicId = user.avatar.split('/').pop().split('.')[0];
+
+  // delete the image from cloudinery
+  await cloudinery.uploader.destroy(publicId);
+
+  // remove the avatar url from db
+  user.avatar = '';
+  await User.sava();
+
+  res
+  .status(200)
+  .json(
+    new ApiResponse(200, "Avatar deleted successfully")
+  )
+
+});
+
+
+// update user avatar photo
+const updateUserAvatar = asyncHandler( async(req, res) => {
+
+  const avatarLocalPath = req.file?.path;
+
+  if(!avatarLocalPath){
+    throw new ApiError(400, "Avatar file is missing");
+  }
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set:{
+        avatar: avatar.url
+      }
+    },
+    {
+      new: true
+    }
+  ).select("-password -refreshToken");
+
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(200, user, "Avatar image updated successfully")
+    )
+
+});
+
+export { 
+  registerUser, 
+  updateUser,
+  updateUserAvatar,
+
+};
