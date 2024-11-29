@@ -21,7 +21,6 @@ app.use(cookieParser());
 
 // routes import
 import userRouter from "./routes/user.routes.js";
-import verifyToken from "./middleware/auth.firebase.middlewar.js";
 
 
 // routes declaration
