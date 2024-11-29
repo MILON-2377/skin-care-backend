@@ -36,6 +36,12 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All field are required");
   }
 
+  const count = await User.countDocuments({email});
+
+  if(count > 0){
+    throw new ApiError(409, "Email already exist. Try to another email");
+  }
+
   // check is user exist or not
   const existUser = await User.findOne({
     email,
@@ -49,14 +55,13 @@ const registerUser = asyncHandler(async (req, res) => {
     userName: userName.toLowerCase(),
     email,
     password
-  });
+  }).select("-password -refreshToken");
 
   // generate access and refresh token
   const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
 
-  const createUser = await User.findById(user._id).select("-password -refreshToken");
 
-  if(!createUser){
+  if(!user){
     throw new ApiError(500, "User not registered server internal error please try after a while")
   }
 
@@ -65,7 +70,7 @@ const registerUser = asyncHandler(async (req, res) => {
   .cookie('accessToken', accessToken, cookiesOptions)
   .cookie("refreshToken", refreshToken, cookiesOptions)
   .json(
-    new ApiResponse(200, createUser, "User registered successfully")
+    new ApiResponse(200, user, "User registered successfully")
   );
   
 });
@@ -182,9 +187,52 @@ const updateUserAvatar = asyncHandler( async(req, res) => {
 
 });
 
+
+
+// login user
+const loginUser = asyncHandler( async(req, res) => {
+
+  const {email, password} = req.body;
+
+  // console.log(email);
+
+  if(!email && !password){
+    throw new ApiError(400, "email is required");
+  }
+
+  const user = await User.findOne({email});
+
+  if(!user){
+    throw new ApiError(404, "User does not exist");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if(!isPasswordValid){
+    throw new ApiError(401, "Invalid user credentials");
+  }
+
+  const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
+
+  const loggedInUser = await User.findById(
+    user._id,
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookiesOptions)
+    .cookie("refreshToken", refreshToken, cookiesOptions)
+    .json(
+      new ApiResponse(200, {
+        user: loggedInUser
+      })
+    )
+
+});
+
 export { 
   registerUser, 
   updateUser,
   updateUserAvatar,
-
+  loginUser,
 };
