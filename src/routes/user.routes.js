@@ -10,6 +10,9 @@ import {
 } from "../controllers/user.contorller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import verifyToken from "../middleware/auth.middleware.js";
+import { 
+    userAccountDelete,
+} from "../controllers/normal.user.dashboard.controller.js";
 
 const router = Router();
 
@@ -29,6 +32,10 @@ router.route("/login-user").post(loginUser);
 router.route("/logout-user").post(verifyToken,logOutUser);
 router.route("/refresh-token").post(refreshAccssToken);
 router.route("/password-change").post(verifyToken,userPaswordChange);
+
+
+// normal user routes
+router.route("/delete-user").post(verifyToken, userAccountDelete);
 
 
 
