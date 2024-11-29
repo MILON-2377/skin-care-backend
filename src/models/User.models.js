@@ -14,7 +14,7 @@ const addressSchema = new mongoose.Schema({
         required: false,
         trim: true,
     },
-    postalcode: {
+    postalCode: {
         type: String,
         required: false,
         trim: true,
@@ -45,7 +45,6 @@ const userSchema = new mongoose.Schema({
     },
     address:{
         type: addressSchema,
-        required: false,
         default: {},
     },
     phone:{

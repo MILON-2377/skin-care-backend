@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/User.models.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import { cookiesOptions } from "../constansts.js";
 
 
 
@@ -49,13 +50,20 @@ const registerUser = asyncHandler(async (req, res) => {
     password
   });
 
+  // generate access and refresh token
+  const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
+
   const createUser = await User.findById(user._id).select("-password -refreshToken");
 
   if(!createUser){
     throw new ApiError(500, "User not registered server internal error please try after a while")
   }
 
-  return res.status(201).json(
+  return res
+  .status(201)
+  .cookie('accessToken', accessToken, cookiesOptions)
+  .cookie("refreshToken", refreshToken, cookiesOptions)
+  .json(
     new ApiResponse(200, createUser, "User registered successfully")
   );
   
@@ -63,31 +71,52 @@ const registerUser = asyncHandler(async (req, res) => {
 
 // user info updation
 const updateUser = asyncHandler(async (req, res) => {
+
+  // validate the user info
+  // verify the user authorization
+  // find the user info
+  // update the user info
+  // return the updated user info with response
+
+
   const { street, city, postalCode, phone } = req.body;
 
-  // console.log(userId);
 
   // validation form update info
   if (
-    [street, city, postalCode].some(
+    [street, city, postalCode, phone].some(
       (element) => element?.trim() === "" || element === undefined
     )
   ) {
     throw new ApiError(400, "All field are required");
   }
 
-  // check is user exist or not
 
-  // get the avatar file and validate
-  const avatarLocalPath = req.files?.path;
-
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
+  const updateData = {
+    phone,
+    address:{
+      street,
+      city,
+      postalCode,
+    }
   }
 
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: updateData
+    },
+    {
+      new: true
+    }
+  ).select("-password -refreshToken");
+
+
+  
+
   return res
-    .status(201)
-    .json(new ApiResponse(200, {}, "user update successfully"));
+    .status(200)
+    .json(new ApiResponse(200, user, "user update successfully"));
 });
 
 export { registerUser, updateUser };
