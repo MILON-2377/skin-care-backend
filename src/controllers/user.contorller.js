@@ -270,6 +270,8 @@ const refreshAccssToken = asyncHandler( async(req, res) => {
     
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
 
+    // console.log(decodedToken);
+
     const user = await User.findById(decodedToken?._id);
 
     if(!user){
@@ -296,6 +298,43 @@ const refreshAccssToken = asyncHandler( async(req, res) => {
 
 });
 
+
+// user password change
+const userPaswordChange = asyncHandler( async(req, res) => {
+
+  // get the old and currrent password from user
+  // validate the password fields
+  // verify user token through jwt
+  // verify the old passwod
+  // update the new password 
+  // response return
+
+  const {oldPassword, currentPassword} = req.body;
+
+
+  if(!oldPassword && !currentPassword){
+    throw new ApiError(401, "Current and Old password is required");
+  }
+
+  const user = await User.findById(req.user?._id);
+
+  const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+
+  if(!isPasswordValid){
+    throw new ApiError(400, "Invalid password");
+  }
+
+  user.password = currentPassword;
+  await user.save({validateBeforeSave: false});
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {}, "Password changed successfully")
+    )
+
+});
+
 export { 
   registerUser, 
   updateUser,
@@ -303,4 +342,5 @@ export {
   loginUser,
   logOutUser,
   refreshAccssToken,
+  userPaswordChange,
 };

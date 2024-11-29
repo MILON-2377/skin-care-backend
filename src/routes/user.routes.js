@@ -6,6 +6,7 @@ import {
     loginUser,
     logOutUser,
     refreshAccssToken,
+    userPaswordChange
 } from "../controllers/user.contorller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import verifyToken from "../middleware/auth.middleware.js";
@@ -27,6 +28,7 @@ router.route("/update-avatar").patch(
 router.route("/login-user").post(loginUser);
 router.route("/logout-user").post(verifyToken,logOutUser);
 router.route("/refresh-token").post(refreshAccssToken);
+router.route("/password-change").post(verifyToken,userPaswordChange);
 
 
 
