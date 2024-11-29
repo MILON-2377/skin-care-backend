@@ -3,7 +3,8 @@ import {
     registerUser,
     updateUser,
     updateUserAvatar,
-    loginUser
+    loginUser,
+    logOutUser,
 } from "../controllers/user.contorller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import verifyToken from "../middleware/auth.middleware.js";
@@ -23,6 +24,7 @@ router.route("/update-avatar").patch(
 )
 
 router.route("/login-user").post(loginUser);
+router.route("/logout-user").post(verifyToken,logOutUser);
 
 
 
