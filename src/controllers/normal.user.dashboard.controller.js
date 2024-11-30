@@ -130,6 +130,111 @@ const viewWishlist = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, wishlist, "Success"));
 });
 
+// view cart items
+const viewCartItems = asyncHandler(async (req, res) => {
+  const { productIds } = req.query || req.params; 
+  const userId = req.user?._id; 
+
+  if (!userId) {
+    throw new ApiError(401, "User not authenticated");
+  }
+
+  let cart;
+
+  if (productIds) {
+    
+    const productIdArray = productIds.split(",").map((id) => new ObjectId(id));
+
+    cart = await Cart.aggregate([
+      {
+        $match: { userId: new ObjectId(userId) }, 
+      },
+      {
+        $unwind: "$items", 
+      },
+      {
+        $match: { "items.productId": { $in: productIdArray } }, 
+      },
+      {
+        $lookup: {
+          from: "products", 
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          
+          productName: "$productDetails.productName",
+          price: "$productDetails.price",
+          quantity: "$items.quantity",
+          totalPrice: {
+            $multiply: ["$items.quantity", "$productDetails.price"],
+          }, 
+          brand: "$productDetails.brand",
+          category: "$productDetails.category",
+          stock: "$productDetails.stock",
+          averageRating: "$productDetails.averageRating",
+          totalReviews: "$productDetails.totalReviews",
+          images: "$productDetails.images",
+          description: "$productDetails.description",
+        },
+      },
+    ]);
+  } else {
+    cart = await Cart.aggregate([
+      {
+        $match: { userId: new ObjectId(userId) },
+      },
+      {
+        $unwind: "$items",
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "productDetails",
+        },
+      },
+      {
+        $unwind: "$productDetails",
+      },
+      {
+        $project: {
+          productName: "$productDetails.productName",
+          price: "$productDetails.price",
+          quantity: "$items.quantity",
+          totalPrice: {
+            $multiply: ["$items.quantity", "$productDetails.price"],
+          },
+          brand: "$productDetails.brand",
+          category: "$productDetails.category",
+          stock: "$productDetails.stock",
+          averageRating: "$productDetails.averageRating",
+          totalReviews: "$productDetails.totalReviews",
+          images: "$productDetails.images",
+          description: "$productDetails.description",
+        },
+      },
+    ]);
+  }
+
+  if (!cart || cart.length === 0) {
+    return res
+      .status(404)
+      .json(new ApiResponse(404, {}, "No products found in the cart"));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, cart, "Cart retrieved successfully"));
+});
+
 // add product to cart
 const addProductToCart = asyncHandler(async (req, res) => {
   const items = req.body || [];
@@ -170,22 +275,17 @@ const addProductToCart = asyncHandler(async (req, res) => {
     cart = new Cart({
       userId,
       items: [...items],
-      totalItems: Number(items.length),
     });
   } else {
-    if (cart.items.length === 0) {
-      cart.items = [...items];
-    } else {
-      for (let item of items) {
-        const existingItemIndex = cart.items.findIndex(
-          (i) => i.productId.toString() === item.productId.toString()
-        );
+    for (let item of items) {
+      const existingItemIndex = cart.items.findIndex(
+        (i) => i.productId.toString() === item.productId.toString()
+      );
 
-        if (existingItemIndex !== 1) {
-          cart.items[existingItemIndex].quantity += item.quantity;
-        } else {
-          cart.items.push(item);
-        }
+      if (existingItemIndex !== -1) {
+        cart.items[existingItemIndex].quantity += item.quantity;
+      } else {
+        cart.items.push(item);
       }
     }
   }
@@ -263,4 +363,5 @@ export {
   viewWishlist,
   addProductToCart,
   removeProductToCart,
+  viewCartItems,
 };

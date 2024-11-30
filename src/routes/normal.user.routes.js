@@ -7,6 +7,7 @@ import {
     viewWishlist,
     addProductToCart,
     removeProductToCart,
+    viewCartItems,
 } from "../controllers/normal.user.dashboard.controller.js";
 
 
@@ -20,6 +21,7 @@ router.route("/wishlist/remove").delete(verifyToken, removeProductFromWishlist);
 router.route("/wishlist").get(verifyToken, viewWishlist);
 router.route("/cart/add").post(verifyToken, addProductToCart);
 router.route("/cart/remove").delete(verifyToken, removeProductToCart);
+router.route("/cart/view").get(verifyToken, viewCartItems);
 
 
 export default router;
