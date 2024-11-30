@@ -6,7 +6,8 @@ import { Product } from "../models/Products.models.js";
 import { Wishlist } from "../models/Wishlist.models.js";
 import { Cart } from "../models/Cart.models.js";
 import mongoose from "mongoose";
-const {ObjectId} = mongoose.Types;
+import { countTotalPriceAndItems } from "./aggregate.pipeline.controller.js";
+const { ObjectId } = mongoose.Types;
 // user account deletion
 const userAccountDelete = asyncHandler(async (req, res) => {
   // get user password
@@ -134,20 +135,20 @@ const addProductToCart = asyncHandler(async (req, res) => {
   const items = req.body || [];
 
   // validation check
-  if(items.length === 0){
+  if (items.length === 0) {
     throw new ApiError(400, "At least one product details is required");
   }
 
-  for(let item of items){
-    if(!item.productId){
+  for (let item of items) {
+    if (!item.productId) {
       throw new ApiError(400, "productId is required");
     }
 
-    if(item.quantity === 0){
+    if (item.quantity === 0) {
       throw new ApiError(400, "At least one quantity is required");
     }
 
-    if(item.quantity < 0){
+    if (item.quantity < 0) {
       throw new ApiError(400, "quantity can not be negative ");
     }
   }
@@ -155,15 +156,13 @@ const addProductToCart = asyncHandler(async (req, res) => {
   // get the user id
   const userId = req.user?._id;
 
-  const productIds = items.map(i => i.productId );
+  const productIds = items.map((i) => i.productId);
 
-  
-  const products = await Product.find({_id: {$in: productIds}});
+  const products = await Product.find({ _id: { $in: productIds } });
 
-  if(products.length === 0){
+  if (products.length === 0) {
     throw new ApiError(404, "No products found for the given productIds");
   }
-
 
   let cart = await Cart.findOne({ userId });
 
@@ -173,15 +172,20 @@ const addProductToCart = asyncHandler(async (req, res) => {
       items: [...items],
       totalItems: Number(items.length),
     });
-  } else{
+  } else {
+    if (cart.items.length === 0) {
+      cart.items = [...items];
+    } else {
+      for (let item of items) {
+        const existingItemIndex = cart.items.findIndex(
+          (i) => i.productId.toString() === item.productId.toString()
+        );
 
-    for(let item of items){
-      const existingItemIndex = cart.items.findIndex(i => i.productId.toString() === item.productId.toString());
-
-      if(existingItemIndex !== 1){
-        cart.items[existingItemIndex].quantity += item.quantity;
-      }else{
-        cart.items.push(item);
+        if (existingItemIndex !== 1) {
+          cart.items[existingItemIndex].quantity += item.quantity;
+        } else {
+          cart.items.push(item);
+        }
       }
     }
   }
@@ -189,83 +193,68 @@ const addProductToCart = asyncHandler(async (req, res) => {
   // save the updated cart
   await cart.save();
 
-  // use aggregation pipeline to calculate total price
-  const aggregatedCart = await Cart.aggregate([
-    {
-      $match: { userId: new ObjectId(userId) },
-    },
-    {
-      $unwind: {
-        path: "$items",
-      },
-    },
-    {
-      $lookup: {
-        from: "products",
-        localField: "items.productId",
-        foreignField: "_id",
-        as: "productDetails",
-      },
-    },
-    {
-      $unwind: {
-        path: "$productDetails",
-        includeArrayIndex: "itemIndex",
-      },
-    },
-    {
-      $group: {
-        _id: "$_id",
-        totalPrice: {
-          $sum: { $multiply: ["$items.quantity", "$productDetails.price"] },
-        },
-        totalItems:{
-            $sum:"$items.quantity"
-        },
-        items: { $push: "$items" },
-      },
-    },
-  ]);
+  const updatedCart = await countTotalPriceAndItems(userId);
+  cart.totalItems = updatedCart.totalItems;
+  cart.totalPrice = updatedCart.totalPrice;
 
-  if(aggregatedCart.length > 0){
-    const updatedCart = aggregatedCart[0];
-
-    cart.totalPrice = updatedCart.totalPrice;
-    cart.totalItems = updatedCart.totalItems;
-
-    await cart.save();
-  }else{
-    throw new ApiError(404, "Failed to aggregate cart data");
-  }
+  await cart.save();
 
   return res
     .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        cart
-        ,
-        "Product added to cart successfully"
-      )
-    );
+    .json(new ApiResponse(200, {}, "Product added to cart successfully"));
 });
 
-
 // remove product to cart
-const removeProductToCart = asyncHandler( async(req, res) => {
-  // get the product details from body
-  // validate the details
-  // verify token
-  // check product is exist or not
-  // check the user cart already created or not
-  // if not created already then new create 
-  // find the exist one and update the value
-  // make the aggregate function to calculate the total price and total items
-  
+const removeProductToCart = asyncHandler(async (req, res) => {
+  const items = req.body || [];
 
-  const {productId, quantity} = req.body;
+  if (items.length === 0) {
+    throw new ApiError(400, "At least one product details are required");
+  }
 
-})
+  for (let item of items) {
+    if (!item.productId) {
+      throw new ApiError(404, "productId is required");
+    }
+  }
+
+  const userId = req.user?._id;
+
+  let cart = await Cart.findOne({ userId });
+
+  if (cart.length === 0) {
+    throw new ApiError(404, "cart not found for this user");
+  }
+
+  for (let item of items) {
+    const itemIndex = cart.items.findIndex(
+      (i) => i.productId.toString() === item.productId.toString()
+    );
+
+    if (itemIndex === -1) {
+      throw new ApiError(404, "Product not found in the cart");
+    }
+
+    cart.items.splice(itemIndex, 1);
+  }
+
+  await cart.save();
+
+  if (cart.items.length === 0) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Product remove from cart successfully"));
+  }
+
+  const updatedCart = await countTotalPriceAndItems(userId);
+  cart.totalPrice = updatedCart.totalPrice;
+  cart.totalItems = updatedCart.totalItems;
+  await cart.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, cart, "product remove from cart successfully"));
+});
 
 export {
   userAccountDelete,
@@ -273,4 +262,5 @@ export {
   removeProductFromWishlist,
   viewWishlist,
   addProductToCart,
+  removeProductToCart,
 };
