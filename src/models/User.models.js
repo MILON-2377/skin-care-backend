@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import speakeasy from "speakeasy";
+import qrcode from "qrcode";
+import nodemailer from "nodemailer";
 
 
 const addressSchema = new mongoose.Schema({
@@ -58,6 +61,14 @@ const userSchema = new mongoose.Schema({
     },
     refreshToken:{
         type: String,
+    },
+    twoFactorSecret:{
+        type: String,
+        default: null
+    },
+    isTwoFactorEnabled:{
+        type: Boolean,
+        default: false,
     }
 },
 {
@@ -105,5 +116,33 @@ userSchema.methods.generateRefreshToken = function(){
         }
     );
 }
+
+
+
+// userSchema.methods.qrCodeSend = function(email){
+
+//     // generate secret
+//     const secret = speakeasy.generateSecret({
+//         name:`${process.env.DB_COLLECTION_NAME}`
+//     });
+
+//     this.twoFactorSecret = secret;
+
+
+//     // generate the qr code url for the user to scan
+//     const qrCodeUrl = nodemailer.createTransport({
+//         service:"gmail",
+//         auth:{
+//             user: email,
+//             pass:'milon',
+//         }
+//     });
+
+//     // create the email content with the qr code image embedded
+//     const mailOptions = {
+//         from:"milon.sheikh.msk@gmail.com"
+//     }
+
+// }
 
 export const User = mongoose.model("User", userSchema);

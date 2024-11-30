@@ -40,7 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const count = await User.countDocuments({email});
 
   if(count > 0){
-    throw new ApiError(409, "Email already exist. Try to another email");
+    throw new ApiError(409, "Email is already used. Try to another email");
   }
 
   // check is user exist or not
@@ -56,13 +56,14 @@ const registerUser = asyncHandler(async (req, res) => {
     userName: userName.toLowerCase(),
     email,
     password
-  }).select("-password -refreshToken");
+  });
 
   // generate access and refresh token
   const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
 
+  const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
-  if(!user){
+  if(!createdUser){
     throw new ApiError(500, "User not registered server internal error please try after a while")
   }
 
@@ -71,7 +72,7 @@ const registerUser = asyncHandler(async (req, res) => {
   .cookie('accessToken', accessToken, cookiesOptions)
   .cookie("refreshToken", refreshToken, cookiesOptions)
   .json(
-    new ApiResponse(200, user, "User registered successfully")
+    new ApiResponse(200, createdUser, "User registered successfully")
   );
   
 });
