@@ -131,49 +131,58 @@ const viewWishlist = asyncHandler(async (req, res) => {
 
 // add product to cart
 const addProductToCart = asyncHandler(async (req, res) => {
-  const { productId, quantity } = req.body;
+  const items = req.body || [];
 
-  if (!productId || !quantity) {
-    throw new ApiError(400, "productId and quantity is required");
+  // validation check
+  if(items.length === 0){
+    throw new ApiError(400, "At least one product details is required");
   }
 
+  for(let item of items){
+    if(!item.productId){
+      throw new ApiError(400, "productId is required");
+    }
+
+    if(item.quantity === 0){
+      throw new ApiError(400, "At least one quantity is required");
+    }
+
+    if(item.quantity < 0){
+      throw new ApiError(400, "quantity can not be negative ");
+    }
+  }
+
+  // get the user id
   const userId = req.user?._id;
 
+  const productIds = items.map(i => i.productId );
 
-    //   validate productId
-  if(!ObjectId.isValid(productId)){
-    throw new ApiError(400, "Invalid product Id");
+  
+  const products = await Product.find({_id: {$in: productIds}});
+
+  if(products.length === 0){
+    throw new ApiError(404, "No products found for the given productIds");
   }
 
-  const product = await Product.findById(productId);
-
-  if (!product) {
-    throw new ApiError(404, "Product is not found");
-  }
 
   let cart = await Cart.findOne({ userId });
 
   if (!cart) {
     cart = new Cart({
       userId,
-      items: [
-        {
-          productId,
-          quantity: Number(quantity),
-        },
-      ],
+      items: [...items],
+      totalItems: Number(items.length),
     });
-  } else {
-    const itemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === productId
-    );
-    if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += Number(quantity);
-    } else {
-      cart.items.push({
-        productId,
-        quantity: Number(quantity),
-      });
+  } else{
+
+    for(let item of items){
+      const existingItemIndex = cart.items.findIndex(i => i.productId.toString() === item.productId.toString());
+
+      if(existingItemIndex !== 1){
+        cart.items[existingItemIndex].quantity += item.quantity;
+      }else{
+        cart.items.push(item);
+      }
     }
   }
 
@@ -188,7 +197,6 @@ const addProductToCart = asyncHandler(async (req, res) => {
     {
       $unwind: {
         path: "$items",
-        includeArrayIndex: "itemIndex",
       },
     },
     {
@@ -219,22 +227,45 @@ const addProductToCart = asyncHandler(async (req, res) => {
     },
   ]);
 
-  // update teh cart with the new total price
-  const updatedCart = aggregatedCart[0];
-  await Cart.findByIdAndUpdate(cart._id, {
-    totalPrice: updatedCart.totalPrice,
-  });
+  if(aggregatedCart.length > 0){
+    const updatedCart = aggregatedCart[0];
+
+    cart.totalPrice = updatedCart.totalPrice;
+    cart.totalItems = updatedCart.totalItems;
+
+    await cart.save();
+  }else{
+    throw new ApiError(404, "Failed to aggregate cart data");
+  }
 
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        updatedCart,
-        "Product added to cart successfully with total price"
+        cart
+        ,
+        "Product added to cart successfully"
       )
     );
 });
+
+
+// remove product to cart
+const removeProductToCart = asyncHandler( async(req, res) => {
+  // get the product details from body
+  // validate the details
+  // verify token
+  // check product is exist or not
+  // check the user cart already created or not
+  // if not created already then new create 
+  // find the exist one and update the value
+  // make the aggregate function to calculate the total price and total items
+  
+
+  const {productId, quantity} = req.body;
+
+})
 
 export {
   userAccountDelete,

@@ -25,8 +25,8 @@ router.route("/update-avatar").patch(
     updateUserAvatar
 )
 
-router.route("/login-user").post(loginUser);
-router.route("/logout-user").post(verifyToken,logOutUser);
+router.route("/login").post(loginUser);
+router.route("/logout").post(verifyToken,logOutUser);
 router.route("/refresh-token").post(refreshAccssToken);
 router.route("/password-change").post(verifyToken,userPaswordChange);
 
