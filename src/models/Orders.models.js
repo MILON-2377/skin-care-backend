@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import { ApiError } from "../utils/apiError";
 
 const productsSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true,
+    index: true,
   },
   name: {
     type: String,
@@ -80,5 +82,18 @@ ordersSchema.pre('save', function(next){
     this.totalPrice = this.products.reduce((acc, product) => acc + product.price*product.quantity, 0);
     next();
 });
+
+
+ordersSchema.methods.updateStatus = async function (newStatus) {
+  if(this.status === "cancelled"){
+    throw new ApiError(409, "Cancelled orders can not be updated");
+  }
+  if(['processed', 'shipped', 'delivered'].includes(newStatus)){
+    this.status = newStatus;
+    await this.save();
+  }else{
+    throw new ApiError(409, "Invalid status");
+  }
+}
 
 export const Order = mongoose.model("Order", ordersSchema);
