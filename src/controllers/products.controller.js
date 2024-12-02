@@ -69,9 +69,9 @@ const searchProducts = asyncHandler( async(req, res) => {
 const giveReviewToProduct = asyncHandler( async(req, res) => {
 
 
-    const {productId, comment} = req.body;
+    const {productId, comment, rating} = req.body;
 
-    if([productId, comment].some(i => i.trim() === "" )){
+    if([productId, comment, rating].some(i => i.trim() === "" )){
         throw new ApiError(401, "All review are required")
     }
     
@@ -97,13 +97,48 @@ const giveReviewToProduct = asyncHandler( async(req, res) => {
     const reviewProduct = await Review.create({
         userId,
         productId,
+        rating,
         comment,
     });
+
+
+    const updateReviewCountAndRating = await Review.aggregate([
+        {
+            $match:{productId: new ObjectId(productId)}
+        },
+        {
+            $group:{
+                _id: "$productId",
+                totalReviews:{$sum: 1},
+                averageRating: {$avg: "$rating"}
+            }
+        }
+    ]);
+
+
+    // console.log(Number(updateReviewCountAndRating[0].averageRating));
+
+
+    if(updateReviewCountAndRating.length > 0){
+        const {totalReviews, averageRating} = updateReviewCountAndRating[0];
+
+
+        await Product.findByIdAndUpdate(
+            productId,
+            {
+                averageRating: averageRating,
+                totalReviews: totalReviews,
+            },
+            {
+                new: true,
+            }
+        )
+    }
 
     return res
         .status(200)
         .json(
-            new ApiResponse(200, reviewProduct, "comment inserted successfully")
+            new ApiResponse(200, reviewProduct, "Review inserted successfully")
         )
 
 });
