@@ -145,14 +145,78 @@ const giveReviewToProduct = asyncHandler( async(req, res) => {
 
 
 // display review for per product
-const displayReview = asyncHandler( async(req, res) => {
+const displayReviews = asyncHandler(async (req, res) => {
+    const { productId } = req.query;
 
-})
+    
+    if (!productId) {
+        throw new ApiError(400, "Product ID is required");
+    }
+
+    const productReviews = await Product.aggregate([
+        {
+            $match: { _id: new ObjectId(productId) }  
+        },
+        {
+            $lookup: {
+                from: "reviews",            
+                localField: "_id",           
+                foreignField: "productId",  
+                as: "reviewDetails"       
+            }
+        },
+        {
+            $unwind: "$reviewDetails"        
+        },
+        {
+            $lookup: {
+                from: "users",             
+                localField: "reviewDetails.userId",
+                foreignField: "_id",         
+                as: "reviewDetails.reviewer" 
+            }
+        },
+        {
+            $unwind: "$reviewDetails.reviewer" 
+        },
+        {
+            $group: {                      
+                _id: "$_id",              
+                name:  {$first: "$name"} ,  
+                reviewDetails: { $push: "$reviewDetails" }  
+            }
+        },
+        {
+            $project: {                    
+                _id: 1,
+                reviewDetails: {           
+                    comment: 1,
+                    rating: 1,
+                    reviewer: {
+                        userName: 1,           
+                    }
+                }
+            }
+        }
+    ]);
+
+    
+    if (productReviews.length > 0) {
+        return res.status(200).json(
+            new ApiResponse(200, productReviews[0], "Reviews retrieved successfully")
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "No reviews found")
+    );
+});
+
 
 
 export {
     getProducts,
     searchProducts,
     giveReviewToProduct,
-    displayReview,
+    displayReviews,
 }
