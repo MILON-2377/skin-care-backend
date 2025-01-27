@@ -305,7 +305,7 @@ const addProductToCart = asyncHandler(async (req, res) => {
 });
 
 // remove product to cart
-const removeProductToCart = asyncHandler(async (req, res) => {
+const removeProductFromCart = asyncHandler(async (req, res) => {
   const items = req.body || [];
 
   if (items.length === 0) {
@@ -364,6 +364,6 @@ export {
   removeProductFromWishlist,
   viewWishlist,
   addProductToCart,
-  removeProductToCart,
+  removeProductFromCart,
   viewCartItems,
 };

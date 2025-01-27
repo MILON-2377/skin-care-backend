@@ -12,11 +12,11 @@ import {
 const router = Router();
 
 
-// routes
-router.route("/display").get(verifyToken, getProducts );
+// secure routes
+router.route("/display").get(getProducts );
 router.route("/search").get(verifyToken, searchProducts);
 router.route("/review").post(verifyToken, giveReviewToProduct);
-router.route("/display-review").get(displayReviews);
+router.route("/display-review").get(verifyToken,displayReviews);
 
 
 export default router;
