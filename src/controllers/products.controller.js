@@ -6,6 +6,16 @@ import { ApiError } from "../utils/apiError.js";
 import { Review } from "../models/Reviews.models.js";
 const { ObjectId } = mongoose.Types;
 
+// get wishlist products
+const getWishlistProducts = asyncHandler(async (req, res) => {
+  const query = req.query;
+  console.log(query);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Wishlist products retrived successfully"));
+});
+
 // add product
 const addProducts = asyncHandler(async (req, res) => {
   try {
@@ -73,8 +83,6 @@ const getProducts = asyncHandler(async (req, res) => {
     if (priceMax) filter.price.$lte = priceMax;
   }
 
-  const totalDocuments = await Product.countDocuments();
-
   const products = await Product.find(filter)
     .skip((page - 1) * limit)
     .limit(Number(limit))
@@ -82,7 +90,22 @@ const getProducts = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, products, totalDocuments, "Products retrived successfully"));
+    .json(new ApiResponse(200, { products }, "Products retrived successfully"));
+});
+
+// total products data count
+const getTotalProductsCount = asyncHandler(async (req, res) => {
+  const estimatDocumentsCount = await Product.estimatedDocumentCount();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { total: estimatDocumentsCount },
+        "Products total size count successfull"
+      )
+    );
 });
 
 // search products
@@ -243,4 +266,12 @@ const displayReviews = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {}, "No reviews found"));
 });
 
-export { getProducts, searchProducts, giveReviewToProduct, displayReviews, addProducts };
+export {
+  getProducts,
+  searchProducts,
+  giveReviewToProduct,
+  displayReviews,
+  addProducts,
+  getTotalProductsCount,
+  getWishlistProducts,
+};

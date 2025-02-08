@@ -32,10 +32,8 @@ const generateAccessAndRefreshToken = async(userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { userName, email, password } = req.body;
 
-  console.log(req.body);
-
   // validation check of user info
-  if ([userName, email, password].some((element) => element?.trim() === "")) {
+  if ([userName, email, password].some((element) => element === undefined || element?.trim() === "")) {
     throw new ApiError(400, "All field are required");
   }
 
